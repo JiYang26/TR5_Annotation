@@ -15,6 +15,7 @@ Pin_KinDyn::Pin_KinDyn(std::string urdf_pathIn) {
     pinocchio::urdf::buildModel(urdf_pathIn,model_biped_fixed);
     data_biped=pinocchio::Data(model_biped);
     data_biped_fixed=pinocchio::Data(model_biped_fixed);
+    
     model_nv=model_biped.nv;
     J_l=Eigen::MatrixXd::Zero(6,model_nv);
     J_r=Eigen::MatrixXd::Zero(6,model_nv);
@@ -36,6 +37,11 @@ Pin_KinDyn::Pin_KinDyn(std::string urdf_pathIn) {
     dyn_C=Eigen::MatrixXd::Zero(model_nv,model_nv);
     dyn_G=Eigen::MatrixXd::Zero(model_nv,1);
 
+    // std::cout << "model_biped: " << model_biped << std::endl;  //added
+    // std::cout << "model_biped_fixed: " << model_biped_fixed << std::endl;  //added
+
+
+
     // get joint index for Pinocchio Lib, need to redefined the joint name for new model
     r_ankle_joint=model_biped.getJointId("J_ankle_r_roll");
     l_ankle_joint=model_biped.getJointId("J_ankle_l_roll");
@@ -53,6 +59,22 @@ Pin_KinDyn::Pin_KinDyn(std::string urdf_pathIn) {
     l_hip_joint_fixed=model_biped_fixed.getJointId("J_hip_l_yaw");
     base_joint=model_biped.getJointId("root_joint");
     waist_yaw_joint=model_biped.getJointId("J_waist_yaw");
+    // std::cout << "r_ankle_joint_id: " << r_ankle_joint << std::endl;  //added
+    // std::cout << "l_ankle_joint_id: " << l_ankle_joint << std::endl;  //added
+    // std::cout << "r_hand_joint_id: " << r_hand_joint << std::endl;  //added
+    // std::cout << "l_hand_joint_id: " << l_hand_joint << std::endl;  //added
+    // std::cout << "r_hand_joint_fixed_id: " << r_hand_joint_fixed << std::endl;  //added
+    // std::cout << "l_hand_joint_fixed_id: " << l_hand_joint_fixed << std::endl;  //added
+    // std::cout << "r_hip_joint_id: " << r_hip_joint << std::endl;  //added
+    // std::cout << "l_hip_joint_id: " << l_hip_joint << std::endl;  //added
+    // std::cout << "r_hip_roll_joint_id: " << r_hip_roll_joint << std::endl;  //added
+    // std::cout << "l_hip_roll_joint_id: " << l_hip_roll_joint << std::endl;  //added
+    // std::cout << "r_ankle_joint_fixed_id: " << r_ankle_joint_fixed << std::endl;  //added
+    // std::cout << "l_ankle_joint_fixed_id: " << l_ankle_joint_fixed << std::endl;  //added
+    // std::cout << "r_hip_joint_fixed_id: " << r_hip_joint_fixed << std::endl;  //added
+    // std::cout << "l_hip_joint_fixed_id: " << l_hip_joint_fixed << std::endl;  //added
+    // std::cout << "base_joint_id: " << base_joint << std::endl;  //added
+    // std::cout << "waist_yaw_joint_id: " << waist_yaw_joint << std::endl;  //added
 
 
     // read joint pvt parameters
@@ -71,6 +93,10 @@ Pin_KinDyn::Pin_KinDyn(std::string urdf_pathIn) {
     }
     motorReachLimit.assign(motorName.size(),false);
     tauJointOld=Eigen::VectorXd::Zero(motorName.size());
+
+    // std::cout << "motorMaxTorque: " << motorMaxTorque << std::endl;  //added
+    // std::cout << "motorMaxPos: " << motorMaxPos << std::endl;  //added
+    // std::cout << "motorMinPos: " << motorMinPos << std::endl;  //added
 }
 
 void Pin_KinDyn::dataBusRead(const DataBus &robotState) {
@@ -84,6 +110,12 @@ void Pin_KinDyn::dataBusRead(const DataBus &robotState) {
     dq.block(0,0,3,1)=robotState.base_rot.transpose()*dq.block(0,0,3,1);
     dq.block(3,0,3,1)=robotState.base_rot.transpose()*dq.block(3,0,3,1);
     ddq=robotState.ddq;
+    // std::cout << "q: " << q << std::endl;  //added
+    // std::cout << "q.size(): " << q.size() << std::endl;  //added
+    // std::cout << "dq: " << dq << std::endl;  //added
+    // std::cout << "dq.size(): " << dq.size() << std::endl;  //added
+    // std::cout << "ddq: " << ddq << std::endl;  //added
+    // std::cout << "ddq.size(): " << ddq.size() << std::endl;  //added
 }
 
 void Pin_KinDyn::dataBusWrite(DataBus &robotState) {
@@ -312,8 +344,8 @@ void Pin_KinDyn::computeDyn() {
 Pin_KinDyn::IkRes
 Pin_KinDyn::computeInK_Leg(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d &Pdes_L, const Eigen::Matrix3d &Rdes_R,
                            const Eigen::Vector3d &Pdes_R) {
-    const pinocchio::SE3 oMdesL(Rdes_L, Pdes_L);
-    const pinocchio::SE3 oMdesR(Rdes_R, Pdes_R);
+    const pinocchio::SE3 oMdesL(Rdes_L, Pdes_L);    //左腿期望位姿，SE(3) 是欧几里得空间的一个李群，用于描述物体在三维空间中的 位置 和 姿态，即物体的 平移 和 旋转。
+    const pinocchio::SE3 oMdesR(Rdes_R, Pdes_R);    //右腿期望位姿
     // arm-l: 0-6, arm-r: 7-13, head: 14,15 waist: 16-18, leg-l: 19-24, leg-r: 25-30
     Eigen::VectorXd qIk=Eigen::VectorXd::Zero(model_biped_fixed.nv); // initial guess
     qIk[22]=-0.1;
@@ -338,9 +370,20 @@ Pin_KinDyn::computeInK_Leg(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d 
     pinocchio::JointIndex J_Idx_l, J_Idx_r;
     J_Idx_l = l_ankle_joint_fixed;
     J_Idx_r = r_ankle_joint_fixed;
+    // std::cout << "J_Idx_l=l_ankle_joint_fixed: " << J_Idx_l << std::endl; 
+    // std::cout << "J_Idx_r=l_ankle_joint_fixed: " << J_Idx_r << std::endl; 
+  
+
     int itr_count{0};
     for (itr_count=0;; itr_count++)
     {
+        // std::cout << "model_biped_fixed: " << model_biped_fixed << std::endl;
+
+        // std::cout << "qIk elements " << qIk.size() << ": ";
+        // for (int i = 0; i < qIk.size(); ++i) {
+        //     std::cout << qIk(i) << " ";
+        // }
+        // std::cout << std::endl;
         pinocchio::forwardKinematics(model_biped_fixed,data_biped_fixed,qIk);
         const pinocchio::SE3 iMdL = data_biped_fixed.oMi[J_Idx_l].actInv(oMdesL);
         const pinocchio::SE3 iMdR = data_biped_fixed.oMi[J_Idx_r].actInv(oMdesR);
@@ -358,7 +401,17 @@ Pin_KinDyn::computeInK_Leg(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d 
             success = false;
             break;
         }
+        
+        // std::cout << "Left joint type: " << model_biped_fixed.joints[J_Idx_l].shortname() << std::endl;
+        // std::cout << "Right joint type: " << model_biped_fixed.joints[J_Idx_r].shortname() << std::endl;
+        // std::cout << "model_biped_fixed: " << model_biped_fixed << std::endl;
+        // std::cout << "data_biped_fixed: ";
+    
+        // std::cout << "Computing Jacobian for joint ID: " << J_Idx_l << std::endl;
+        // std::cout << "Model njoints: " << model_biped_fixed.njoints << std::endl;
+        // std::cout << "q size: " << q.size() << std::endl;
 
+        // pinocchio::computeJointJacobian(机器人模型, 机器人模型的当前数据, 关节, 关节索引, 计算得到的雅可比矩阵)
         pinocchio::computeJointJacobian(model_biped_fixed,data_biped_fixed,qIk,J_Idx_l,JL);  // JL in joint frame
         pinocchio::computeJointJacobian(model_biped_fixed,data_biped_fixed,qIk,J_Idx_r,JR);  // JR in joint frame
         Eigen::MatrixXd W;
@@ -367,6 +420,15 @@ Pin_KinDyn::computeInK_Leg(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d 
 //        W(16,16)=0.001;  // use a smaller value to make the solver try not to use waist joint
 //        W(17,17)=0.001;
 //        W(18,18)=0.001;
+        
+        // 输出雅可比矩阵
+        // std::cout << "从 JL: \n" << JL << std::endl;
+        // std::cout << "Jacobian matrix JR: \n" << JR << std::endl;
+        // std::cout << "Jacobian matrix JL dimensions: " 
+        //     << JL.rows() << " x " << JL.cols() << std::endl;
+        // std::cout << "Jacobian matrix JR dimensions: " 
+        //     << JR.rows() << " x " << JR.cols() << std::endl;
+
         JL.block(0,16,6,3).setZero();
         JR.block(0,16,6,3).setZero();
         pinocchio::Data::Matrix6 JlogL;

@@ -80,6 +80,7 @@ void MJ_Interface::updateSensorValues() {
 }
 
 void MJ_Interface::setMotorsTorque(std::vector<double> &tauIn) {
+    // std::cout << "jointNum: " << jointNum << std::endl;
     for (int i=0;i<jointNum;i++)
         mj_data->ctrl[i]=tauIn.at(i);
 }

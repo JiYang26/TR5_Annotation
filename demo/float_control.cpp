@@ -29,7 +29,7 @@ int main(int argc, const char** argv)
     // ini classes
     UIctr uiController(mj_model,mj_data);   // UI control for Mujoco
     MJ_Interface mj_interface(mj_model, mj_data); // data interface for Mujoco
-    Pin_KinDyn kinDynSolver("../models/AzureLoong.urdf"); // kinematics and dynamics solver
+    Pin_KinDyn kinDynSolver("../models/TR5.urdf"); // kinematics and dynamics solver
     DataBus RobotState(kinDynSolver.model_nv); // data bus
     PVT_Ctr pvtCtr(mj_model->opt.timestep,"../common/joint_ctrl_config.json");// PVT joint control
     DataLogger logger("../record/datalog.log"); // data logger
@@ -64,9 +64,22 @@ int main(int argc, const char** argv)
     Eigen::Matrix3d hd_l_rot_des= eul2Rot(hd_l_eul_L_des(0),hd_l_eul_L_des(1),hd_l_eul_L_des(2));
     Eigen::Matrix3d hd_r_rot_des= eul2Rot(hd_r_eul_L_des(0),hd_r_eul_L_des(1),hd_r_eul_L_des(2));
 
+    // std::cout << "motors_pos_des:"; 
+    // for (double value : motors_pos_des){
+    //     std::cout << value << " ";
+    // }
+    // std::cout << std::endl;
+    // std::cout << "motors_pos_cur:"; 
+    // for (double value : motors_pos_cur){
+    //     std::cout << value << " ";
+    // }
+    // std::cout << std::endl;
+
     auto resLeg=kinDynSolver.computeInK_Leg(fe_l_rot_des,fe_l_pos_L_des,fe_r_rot_des,fe_r_pos_L_des);
     auto resHand=kinDynSolver.computeInK_Hand(hd_l_rot_des,hd_l_pos_L_des,hd_r_rot_des,hd_r_pos_L_des);
-
+    std::cout << "resLeg.jointPosRes: " << resLeg.jointPosRes.transpose() << std::endl;
+    std::cout << "resHand.jointPosRes: " << resHand.jointPosRes.transpose() << std::endl;
+    std::this_thread::sleep_for(std::chrono::seconds(10)); // 暂停 2 秒
 
 
     // register variable name for data logger
@@ -86,10 +99,16 @@ int main(int argc, const char** argv)
     double startWalkingTime=5;
 
     // init UI: GLFW
+    // std::cout << "----------------------------------------------------------" << std::endl;
+    // std::cout << "------------------------- init UI: GLFW --------------------------" << std::endl;
     uiController.iniGLFW();
     uiController.enableTracking(); // enable viewpoint tracking of the body 1 of the robot
+    // std::cout << "！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！！" << std::endl;
     uiController.createWindow("Demo",false);
-
+    // std::cout << "----------------------- Demo end -----------------------" << std::endl;
+    // std::cout << "----------------------------------------------------------" << std::endl;
+    // std::cout << "------------------------- while --------------------------" << std::endl;
+    // std::this_thread::sleep_for(std::chrono::seconds(10)); // 暂停 2 秒
     while( !glfwWindowShouldClose(uiController.window))
     {
         // advance interactive simulation for 1/60 sec
@@ -102,7 +121,7 @@ int main(int argc, const char** argv)
             mj_step(mj_model, mj_data);
 
             simTime=mj_data->time;
-            printf("-------------%.3f s------------\n",simTime);
+            // printf("-------------%.3f s------------\n",simTime);
             mj_interface.updateSensorValues();
             mj_interface.dataBusWrite(RobotState);
 
@@ -142,17 +161,23 @@ int main(int argc, const char** argv)
             }
             else
             {
-//                pvtCtr.setJointPD(100,10,"Joint-ankel-l-pitch");
-//                pvtCtr.setJointPD(100,10,"Joint-ankel-l-roll");
-//                pvtCtr.setJointPD(100,10,"Joint-ankel-r-pitch");
-//                pvtCtr.setJointPD(100,10,"Joint-ankel-r-roll");
-//                pvtCtr.setJointPD(1000,100,"Joint-knee-l-pitch");
-//                pvtCtr.setJointPD(1000,100,"Joint-knee-r-pitch");
+                // pvtCtr.setJointPD(100,10,"Joint-ankel-l-pitch");
+                // pvtCtr.setJointPD(100,10,"Joint-ankel-l-roll");
+                // pvtCtr.setJointPD(100,10,"Joint-ankel-r-pitch");
+                // pvtCtr.setJointPD(100,10,"Joint-ankel-r-roll");
+                // pvtCtr.setJointPD(1000,100,"Joint-knee-l-pitch");
+                // pvtCtr.setJointPD(1000,100,"Joint-knee-r-pitch");
                 pvtCtr.calMotorsPVT();
             }
             pvtCtr.dataBusWrite(RobotState);
-
+            
+            // std::cout << "RobotState.motors_tor_out" << RobotState.motors_tor_out.size() << ": ";
+            // for (int i = 0; i < RobotState.motors_tor_out.size(); ++i) {
+            //     std::cout << RobotState.motors_tor_out[i] << " ";   //std::vector 中的元素访问应该使用 operator[] 或 .at() 方法
+            // }
+            // std::cout << std::endl;
             mj_interface.setMotorsTorque(RobotState.motors_tor_out);
+            // std::this_thread::sleep_for(std::chrono::seconds(100)); // 暂停 10 秒
 
             logger.startNewLine();
             logger.recItermData("simTime", simTime);

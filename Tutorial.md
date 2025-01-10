@@ -32,6 +32,8 @@ a. **xml类型模型文件导出**
 
 准备机器人的URDF文件和mesh文件(STL格式)，添加用于mujoco编译的标签：
 
+
+
 ```XML
 <mujoco>
 <compiler
@@ -41,7 +43,7 @@ a. **xml类型模型文件导出**
 </mujoco>
 ```
 
-切换到mujoco-3.x.x/bin目录，运行指令
+切换到mujoco-3.x.x/build/bin目录，运行指令
 
 ```Bash
 ./simulate
