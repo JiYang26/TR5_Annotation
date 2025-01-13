@@ -1,5 +1,5 @@
 <mujoco model="scene">
-<include file="AzureLoong_float.xml"/>
+<include file="TR5_float.xml"/>
 
 <statistic center="0 0 0.1" extent="0.8"/>
 
