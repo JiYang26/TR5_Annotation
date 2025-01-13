@@ -53,7 +53,6 @@
   <worldbody>
    <body name="base_link" pos="0 0 1.2">  <!--zero position: posz=1.14   -->
     <freejoint name="float_base" />
-    asdadasdsa
     <inertial  pos="-0.0056641 -0.0013367 0.23829" mass="22.447" fullinertia="0.3742 0.27691 0.22104 0.0009471 0.004646 0.0040142" />
     <geom type="mesh" contype="0" conaffinity="0" group="1" density="0"  mesh="base_link"/>
     <geom type="mesh" mesh="base_link"/>
@@ -323,7 +322,6 @@
       <motor name="M_head_yaw"  joint="J_head_yaw" gear="1" ctrllimited="true" ctrlrange="-26 26"/>
       <motor name="M_head_pitch"  joint="J_head_pitch" gear="1" ctrllimited="true" ctrlrange="-26 26"/>
 
-      <motor name="M_waist_pitch"  joint="J_waist_pitch" gear="1" ctrllimited="true" ctrlrange="-315 315"/>
       <motor name="M_waist_roll"  joint="J_waist_roll" gear="1" ctrllimited="true" ctrlrange="-315 315"/>
       <motor name="M_waist_yaw"  joint="J_waist_yaw" gear="1" ctrllimited="true" ctrlrange="-121 121"/>
 
@@ -422,7 +420,7 @@
       <touch name="rf-touch" site="rf-tc" />
   </sensor>
 
-   <keyframe>
+   <!--<keyframe>
 	<key name="home"
 	     qpos="0 0 1.16
 	    1 0 0 0
@@ -456,7 +454,8 @@
 
 	       "
 	     />
-   </keyframe>
+   </keyframe>/-->
+
 </mujoco>
 
 
