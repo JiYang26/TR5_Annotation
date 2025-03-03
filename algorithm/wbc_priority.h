@@ -30,13 +30,13 @@ public:
     DataBus::MotionState motionStateCur;
     WBC_priority(int model_nv_In, int QP_nvIn, int QP_ncIn, double miu_In, double dt);
     double miu{0.5};
-    Eigen::MatrixXd dyn_M, dyn_M_inv, dyn_Ag, dyn_dAg;
+    Eigen::MatrixXd dyn_M, dyn_M_inv, dyn_Ag, dyn_dAg; //动力学模型相关矩阵
     Eigen::VectorXd dyn_Non; // dyn_Non= c*dq+g
-    Eigen::MatrixXd Jc, dJc, Jfe, dJfe, Jfe_L, Jfe_R;
-    Eigen::MatrixXd J_hd_l, J_hd_r, dJ_hd_l, dJ_hd_r;
-    Eigen::MatrixXd Jsw, dJsw;
-    Eigen::Matrix3d fe_rot_sw_W;
-    Eigen::Vector3d fe_pos_sw_W;
+    Eigen::MatrixXd Jc, dJc, Jfe, dJfe, Jfe_L, Jfe_R; //运动学相关矩阵
+    Eigen::MatrixXd J_hd_l, J_hd_r, dJ_hd_l, dJ_hd_r; //运动学相关矩阵
+    Eigen::MatrixXd Jsw, dJsw; //摆动腿的雅各比矩阵
+    Eigen::Matrix3d fe_rot_sw_W; //摆动腿脚端在世界坐标系中的当前旋转矩阵
+    Eigen::Vector3d fe_pos_sw_W; //摆动腿脚端在世界坐标系的当前位置
     Eigen::Vector3d hd_l_pos_cur_W, hd_r_pos_cur_W;
     Eigen::Matrix3d hd_l_rot_cur_W, hd_r_rot_cur_W;
     Eigen::Vector3d fe_l_pos_des_W, fe_r_pos_des_W;
@@ -50,8 +50,8 @@ public:
     Eigen::VectorXd eigen_xOpt;
     Eigen::VectorXd eigen_ddq_Opt;
     Eigen::VectorXd eigen_fr_Opt, eigen_tau_Opt;
-    Eigen::MatrixXd Q1;
-    Eigen::MatrixXd Q2;
+    Eigen::MatrixXd Q1; //外部接触力与期望误差权重,顺序为fl, tl, fr, tr
+    Eigen::MatrixXd Q2; //关节加速度与期望误差权重
     Eigen::VectorXd delta_q_final_kin, dq_final_kin, ddq_final_kin, tauJointRes;
     Eigen::Matrix3d fe_L_rot_L_off, fe_R_rot_L_off; // foot-end R w.r.t to the body frame in offset posture
     double l_shoulder_pitch = 0; //q(28) - qIniDes(28);

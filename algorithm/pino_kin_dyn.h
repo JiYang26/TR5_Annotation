@@ -28,7 +28,7 @@ public:
     const std::vector<std::string> motorName={"J_arm_l_01","J_arm_l_02","J_arm_l_03", "J_arm_l_04", "J_arm_l_05",
                                               "J_arm_l_06","J_arm_l_07","J_arm_r_01", "J_arm_r_02", "J_arm_r_03",
                                               "J_arm_r_04","J_arm_r_05","J_arm_r_06", "J_arm_r_07",
-                                              "J_head_yaw","J_head_pitch","J_waist_pitch","J_waist_roll", "J_waist_yaw",
+                                              "J_head_yaw","J_head_pitch","J_waist_roll", "J_waist_yaw",
                                               "J_hip_l_roll", "J_hip_l_yaw", "J_hip_l_pitch", "J_knee_l_pitch",
                                               "J_ankle_l_pitch", "J_ankle_l_roll", "J_hip_r_roll", "J_hip_r_yaw",
                                               "J_hip_r_pitch", "J_knee_r_pitch", "J_ankle_r_pitch", "J_ankle_r_roll"}; // joint name in urdf and jason config files
@@ -76,16 +76,16 @@ public:
         Eigen::VectorXd jointPosRes;
     };
 
-    Pin_KinDyn(std::string urdf_pathIn);
+    Pin_KinDyn(std::string urdf_pathIn); //Construct a new Pin_KinDyn object
     void dataBusRead(DataBus const &robotState);
     void dataBusWrite(DataBus &robotState);
-    void computeJ_dJ();
-    void computeDyn();
-    IkRes computeInK_Leg(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d &Pdes_L, const Eigen::Matrix3d &Rdes_R, const Eigen::Vector3d &Pdes_R);
-    IkRes computeInK_Hand(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d &Pdes_L, const Eigen::Matrix3d &Rdes_R, const Eigen::Vector3d &Pdes_R);
-    Eigen::VectorXd integrateDIY(const Eigen::VectorXd &qI, const Eigen::VectorXd &dqI);
+    void computeJ_dJ();//compute the jacobian matrix and jacobian time variant matrix
+    void computeDyn();//compute the dynmaics coefficient of robot
+    IkRes computeInK_Leg(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d &Pdes_L, const Eigen::Matrix3d &Rdes_R, const Eigen::Vector3d &Pdes_R);//compute inverse kinematic of robot legs
+    IkRes computeInK_Hand(const Eigen::Matrix3d &Rdes_L, const Eigen::Vector3d &Pdes_L, const Eigen::Matrix3d &Rdes_R, const Eigen::Vector3d &Pdes_R);//Inverse Kinematics for hand posture.
+    Eigen::VectorXd integrateDIY(const Eigen::VectorXd &qI, const Eigen::VectorXd &dqI);//intergrate the position q with velocity dq, for floating base dynamics
     static Eigen::Quaterniond intQuat(const Eigen::Quaterniond &quat, const Eigen::Matrix<double,3,1> &w);
-    void workspaceConstraint(Eigen::VectorXd &qFT, Eigen::VectorXd &tauJointFT);
+    void workspaceConstraint(Eigen::VectorXd &qFT, Eigen::VectorXd &tauJointFT);//constraint the joint output torques
 private:
     pinocchio::Data data_biped, data_biped_fixed;
 

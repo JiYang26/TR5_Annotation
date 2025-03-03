@@ -13,20 +13,21 @@ Feel free to use in any purpose, and cite OpenLoong-Dynamics-Control in any styl
 
 class FootPlacement {
 public:
-    double kp_vx{0}, kp_vy{0}, kp_wz{0};
-    double legLength{1};
-    double stepHeight{0.1};
+    double kp_vx{0}, kp_vy{0}, kp_wz{0}; //x，y，z轴位置控制增益
+    double legLength{1}; //腿长
+    double stepHeight{0.1}; //迈步的最高z轴位置
     double phi{0};    // phase varialbe for trajectory generation, must between 0 and 1
     double tSwing{0.4}; // swing time
-    Eigen::Vector3d posStart_W, posDes_W, hipPos_W, STPos_W;
-    Eigen::Vector3d desV_W, curV_W;
-    double desWz_W;
+    Eigen::Vector3d posStart_W, posDes_W, hipPos_W, STPos_W; //STPos_W是世界坐标系下的脚步位置
+    Eigen::Vector3d desV_W, curV_W;//desired velocity and current velocity in world coordinate
+    double desWz_W; //desired angular velocity projected on z-axis
     Eigen::Vector3d base_pos;
-    double Trajectory(double phase, double des1, double des2);
-    void getSwingPos();
+    double Trajectory(double phase, double des1, double des2); //通过贝塞尔曲线生成摆动腿z方向的位置，des1为脚步的最高点，des2为走步的最终位置，phase==phi的时候脚的高度最高
+    void getSwingPos();//计算摆动脚的目的位置，存储在pDesCur中
     void dataBusRead(DataBus &robotState);
     void dataBusWrite(DataBus &robotState);
-    DataBus::LegState legState;
+    DataBus::LegState legState;//record the leg state, used to make swing motion inward
+
 private:
     double pDesCur[3]{0};
     double yawCur;

@@ -10,12 +10,12 @@ Feel free to use in any purpose, and cite OpenLoong-Dynamics-Control in any styl
 
 // Note: no double-support here, swing time always equals to stance time
 GaitScheduler::GaitScheduler(double tSwingIn, double dtIn) {
-    tSwing=tSwingIn;
-    dt=dtIn;
-    phi=0;
-    isIni=false;
-    legState=DataBus::RSt;
-    motionState=DataBus::Stand;
+    tSwing=tSwingIn; //摆动时间
+    dt=dtIn; //时间步长，用于离散化控制，也是步态的更新频率
+    phi=0; //相位，用来跟踪步态周期进度
+    isIni=false; //是否初始化
+    legState=DataBus::RSt; //当前支撑腿，初始化为右腿
+    motionState=DataBus::Stand; //运动状态（行走，站立，行走转站立），初始化为站立
     enableNextStep= false;
 }
 
@@ -104,13 +104,13 @@ void GaitScheduler::step() {
 
     if (!isIni){
         isIni=true;
-        if (legState == DataBus::LSt){ // here define which leg support first
-            swingStartPos_W=fe_r_pos_W;
-            stanceStartPos_W=fe_l_pos_W;
+        if (legState == DataBus::LSt){      // here define which leg support first
+            swingStartPos_W=fe_r_pos_W;     // 如果左脚是支撑腿，那么右脚的位置就是摆腿的起点
+            stanceStartPos_W=fe_l_pos_W;    // 那么左脚的位置就是支撑腿的起点
         }
         else{
-            swingStartPos_W=fe_l_pos_W;
-            stanceStartPos_W=fe_r_pos_W;
+            swingStartPos_W=fe_l_pos_W;     // 如果右脚是支撑腿，那么左脚的位置就是摆腿的起点
+            stanceStartPos_W=fe_r_pos_W;    // 那么右脚的位置就是支撑腿的起点
         }
     }
 

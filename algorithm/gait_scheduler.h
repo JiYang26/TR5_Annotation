@@ -17,16 +17,16 @@ public:
     double phi{0};
     double tSwing{0.4};
     double dt{0.001};
-    double FzThrehold{100};
-    double Fz_L_m{0}, Fz_R_m{0};
+    double FzThrehold{100};//z方向接触力阈值，用来表明足部完全接触地面
+    double Fz_L_m{0}, Fz_R_m{0};//测量出的左脚/右脚与地面接触力，沿z轴
     DataBus::LegState legState, legStateNext;
     DataBus::MotionState motionState;
     GaitScheduler(double tSwingIn, double dtIn);
     void dataBusRead(const DataBus &robotState);
     void dataBusWrite(DataBus &robotState);
-    void step();
-    void stop();
-    Eigen::VectorXd FLest,FRest;
+    void step(); //update the gait
+    void stop(); //stop the gait
+    Eigen::VectorXd FLest,FRest;//评估的左脚与右脚的地面接触力
     Eigen::VectorXd torJoint;
 
     bool enableNextStep;

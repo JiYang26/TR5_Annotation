@@ -10,7 +10,7 @@ Feel free to use in any purpose, and cite OpenLoong-Dynamics-Control in any styl
 
 
 MPC::MPC(double dtIn):QP(nu*ch, nc*ch) {
-    m = 77.35;
+    m = 75;     // m = 77.35;
     g = -9.8;
     miu = 0.5;
     delta_foot[0] = 0.073;
@@ -71,66 +71,81 @@ MPC::MPC(double dtIn):QP(nu*ch, nc*ch) {
     dt = dtIn;
 }
 
-void MPC::set_weight(double u_weight, Eigen::MatrixXd L_diag, Eigen::MatrixXd K_diag) {
-    Eigen::MatrixXd   L_diag_N = Eigen::MatrixXd::Zero(1, nx*mpc_N);
-    Eigen::MatrixXd   K_diag_N = Eigen::MatrixXd::Zero(1, nu*ch);
+/***
+配置状态误差权重矩阵L和控制输入权重矩阵K并通过旋转矩阵 R_curz 对权重进行动态坐标系变换。
+u_weight（double 类型）
+标量权重系数，通常用于调节控制输入项的全局惩罚强度（例如整体缩放输入权重）。
+赋值给 alpha，可能用于后续优化问题中的正则化项或权重组合。
 
-    L = Eigen::MatrixXd::Zero(nx*mpc_N, nx*mpc_N);
-    K = Eigen::MatrixXd::Zero(nu*ch, nu*ch);
+L_diag（Eigen::MatrixXd 类型）
+状态跟踪误差权重矩阵 L 的对角线元素，维度应为 1 × nx（nx 为状态维度）。
+表示每个状态分量的独立权重（如位置、速度、角速度、姿态的误差权重）。
+
+K_diag（Eigen::MatrixXd 类型）
+控制输入权重矩阵 K 的对角线元素，维度应为 1 × nu（nu 为控制输入维度）。
+表示每个输入分量的独立权重（如推力、力矩的惩罚强度）。
+***/
+
+void MPC::set_weight(double u_weight, Eigen::MatrixXd L_diag, Eigen::MatrixXd K_diag) {
+    Eigen::MatrixXd   L_diag_N = Eigen::MatrixXd::Zero(1, nx*mpc_N); //将单步权重L_diag扩展至整个预测时域和控制时域
+    Eigen::MatrixXd   K_diag_N = Eigen::MatrixXd::Zero(1, nu*ch); //将单步权重K_diag扩展至整个预测时域和控制时域
+
+    L = Eigen::MatrixXd::Zero(nx*mpc_N, nx*mpc_N); //最终将构造为块对角矩阵，每个块对应不同时间步的权重。
+    K = Eigen::MatrixXd::Zero(nu*ch, nu*ch); //最终将构造为块对角矩阵，每个块对应不同时间步的权重。
 
     alpha = u_weight;
     for (int i = 0; i < mpc_N; i++) {
         L_diag_N.block<1,nx>(0, i*nx) = L_diag;
-    }
+    } //将 L_diag 沿预测时域重复 mpc_N 次，形成 L_diag_N
 
     for (int i = 0; i < ch; i++) {
         K_diag_N.block<1,nu>(0, i*nu) = K_diag;
-    }
+    } //将 K_diag 沿预测时域重复 mpc_N 次，形成 K_diag_N
 
     for (int i = 0; i < nx*mpc_N; i++) {
         L(i,i) = L_diag_N(0,i);
-    }
+    } //将L_diag_N填充到L的对角线上
 
     for (int i = 0; i < nu*ch; i++) {
         K(i,i) = K_diag_N(0,i);
-    }
+    } //将K_diag_N填充到K的对角线上
 
 	for (int i = 0; i < mpc_N; i++){
 		L.block<3,3>(i*nx + 3,i*nx + 3) = R_curz[i]*L.block<3,3>(i*nx + 3,i*nx + 3)*R_curz[i].transpose();
 		L.block<3,3>(i*nx + 6,i*nx + 6) = R_curz[i]*L.block<3,3>(i*nx + 6,i*nx + 6)*R_curz[i].transpose();
 		L.block<3,3>(i*nx + 9,i*nx + 9) = R_curz[i]*L.block<3,3>(i*nx + 9,i*nx + 9)*R_curz[i].transpose();
-	}
+	} //位姿变换，将权重矩阵L的局部坐标系转换到全局坐标系，确保权重在不同姿态下的一致性。
 
     for (int i = 0; i < ch; i++){
         K.block<3,3>(i*nu,i*nu) = R_curz[i]*K.block<3,3>(i*nu,i*nu)*R_curz[i].transpose();
         K.block<3,3>(i*nu + 3,i*nu + 3) = R_curz[i]*K.block<3,3>(i*nu + 3,i*nu + 3)*R_curz[i].transpose();
         K.block<3,3>(i*nu + 6,i*nu + 6) = R_curz[i]*K.block<3,3>(i*nu + 6,i*nu + 6)*R_curz[i].transpose();
         K.block<3,3>(i*nu + 9,i*nu + 9) = R_curz[i]*K.block<3,3>(i*nu + 9,i*nu + 9)*R_curz[i].transpose();
-    }
+    } //位姿变换，将权重矩阵K的局部坐标系转换到全局坐标系，确保权重在不同姿态下的一致性。
 }
 
 
 void MPC::dataBusRead(DataBus &Data) {
     //set value
-    X_cur.block<3,1>(0,0) = Data.base_rpy;
-    X_cur.block<3,1>(3,0) = Data.q.block<3,1>(0,0);
-    X_cur.block<3,1>(6,0) = Data.dq.block<3,1>(3,0);
-    X_cur.block<3,1>(9,0) = Data.dq.block<3,1>(0,0);
+    X_cur.block<3,1>(0,0) = Data.base_rpy; //将基座的欧拉角存储在当前状态中
+    X_cur.block<3,1>(3,0) = Data.q.block<3,1>(0,0); //将关节角存储在当前状态中
+    X_cur.block<3,1>(6,0) = Data.dq.block<3,1>(3,0); //将关节角速度存储在当前状态中
+    X_cur.block<3,1>(9,0) = Data.dq.block<3,1>(0,0); //将关节速度存储在当前状态中
     if (EN) {
-        //set Xd
+        //set Xd，Xd是目标状态向量，存储MPC预测控制的目标状态
         for (int i = 0; i < (mpc_N - 1); i++)
-            Xd.block<nx, 1>(nx * i, 0) = Xd.block<nx, 1>(nx * (i + 1), 0);
+            Xd.block<nx, 1>(nx * i, 0) = Xd.block<nx, 1>(nx * (i + 1), 0); //将之前的预测目标状态向前移动一个时间步
         for (int j = 0; j < 3; j++)
-            Xd(nx * (mpc_N - 1) + j) = Data.js_eul_des(j);
+            Xd(nx * (mpc_N - 1) + j) = Data.js_eul_des(j); //将最后一个目标状态的位姿设为js_eul_des(j)
         for (int j = 0; j < 3; j++)
-            Xd(nx * (mpc_N - 1) + 3 + j) = Data.js_pos_des(j);
+            Xd(nx * (mpc_N - 1) + 3 + j) = Data.js_pos_des(j); //将最后一个目标状态的位置设为js_pos_des(j)
         for (int j = 0; j < 3; j++)
-            Xd(nx * (mpc_N - 1) + 6 + j) = Data.js_omega_des(j);
+            Xd(nx * (mpc_N - 1) + 6 + j) = Data.js_omega_des(j); //将最后一个目标状态的角速度设为js_omega_des(j)
         for (int j = 0; j < 3; j++)
-            Xd(nx * (mpc_N - 1) + 9 + j) = Data.js_vel_des(j);
+            Xd(nx * (mpc_N - 1) + 9 + j) = Data.js_vel_des(j); //将最后一个目标状态的速度设为js_vel_des(j)
     }
     else{
-        for (int i = 0; i < mpc_N; i++){
+        for (int i = 0; i < mpc_N; i++){ //如果EN为假，则目标状态不移动，将所有目标状态设为当前状态X_cur
             for (int j = 0; j < 3; j++)
                 Xd(nx * i + j) = X_cur(j);//Data.js_eul_des(j);
             for (int j = 0; j < 3; j++)
@@ -150,26 +165,26 @@ void MPC::dataBusRead(DataBus &Data) {
 //			Data.js_vel_des(j) = X_cur(9 + j);//;
     }
 	
-    R_cur = eul2Rot(X_cur(0), X_cur(1), X_cur(2));//Data.base_rot;
+    R_cur = eul2Rot(X_cur(0), X_cur(1), X_cur(2)); //Data.base_rot; R_cur是当前基座的旋转矩阵，通过欧拉角计算得到
     for (int i = 0; i < mpc_N; i++) {
-        R_curz[i] = Rz3(X_cur(2));
+        R_curz[i] = Rz3(X_cur(2)); //R_curz是一个数组，存储每个时间步的z轴旋转矩阵
     }
-    pCoM = X_cur.block<3,1>(3,0);
-    pe.block<3,1>(0,0) = Data.fe_l_pos_W;
-    pe.block<3,1>(3,0) = Data.fe_r_pos_W;
+    pCoM = X_cur.block<3,1>(3,0); //更新质心位置
+    pe.block<3,1>(0,0) = Data.fe_l_pos_W; //更新左脚位置
+    pe.block<3,1>(3,0) = Data.fe_r_pos_W; //更新右脚位置
 
-    pf2com.block<3,1>(0,0) = pe.block<3,1>(0,0) - pCoM;
-    pf2com.block<3,1>(3,0) = pe.block<3,1>(3,0) - pCoM;
-    pf2comd.block<3,1>(0,0) = pe.block<3,1>(0,0) - Xd.block<3,1>(3,0);
-    pf2comd.block<3,1>(3,0) = pe.block<3,1>(3,0) - Xd.block<3,1>(3,0);
+    pf2com.block<3,1>(0,0) = pe.block<3,1>(0,0) - pCoM; //计算当前左脚到质心的向量
+    pf2com.block<3,1>(3,0) = pe.block<3,1>(3,0) - pCoM; //计算当前右脚到质心的向量
+    pf2comd.block<3,1>(0,0) = pe.block<3,1>(0,0) - Xd.block<3,1>(3,0); //计算左脚到目标位置的向量
+    pf2comd.block<3,1>(3,0) = pe.block<3,1>(3,0) - Xd.block<3,1>(3,0); //计算右脚到目标位置的向量
 
     // Ic = Data.inertia;
     Ic <<   12.61,  0, 0.37
             ,0,  11.15, 0.01
             ,0.37,0.01, 2.15;
 
-    legStateCur = Data.legState;
-    legStateNext = Data.legStateNext;
+    legStateCur = Data.legState; //当前腿部状态
+    legStateNext = Data.legStateNext; //下一个腿部状态
     for (int i = 0; i < mpc_N; i++){
         double aa;
         aa = i*dt/0.4;
@@ -195,12 +210,12 @@ void MPC::dataBusRead(DataBus &Data) {
 void MPC::cal() {
     if (EN) {
         //qp pre
-		for (int i = 0; i < mpc_N; i++) {
+		for (int i = 0; i < mpc_N; i++) { //将A矩阵离散化
 			Ac[i].block<3, 3>(0, 6) = R_curz[i].transpose();
 			Ac[i].block<3, 3>(3, 9) = Eigen::MatrixXd::Identity(3,3);
 			A[i] = Eigen::MatrixXd::Identity(nx,nx) + dt * Ac[i];
 		}
-		for (int i = 0; i < mpc_N; i++) {
+		for (int i = 0; i < mpc_N; i++) { //将B矩阵离散化
 			pf2comi[i] = pf2com;
 			Eigen::Matrix3d Ic_W_inv;
 			Ic_W_inv = (R_curz[i] * Ic * R_curz[i].transpose()).inverse();
@@ -213,7 +228,7 @@ void MPC::cal() {
 			Bc[i]((nx - 1), (nu - 1)) = 1.0 / m;
 			B[i] = dt * Bc[i];
 		}
-		for (int i = 0; i < mpc_N; i++)
+		for (int i = 0; i < mpc_N; i++) 
 			Aqp.block<nx, nx>(i * nx, 0) = Eigen::MatrixXd::Identity(nx,nx);
 		for (int i = 0; i < mpc_N; i++)
 			for (int j = 0; j < i + 1; j++)
@@ -225,10 +240,10 @@ void MPC::cal() {
         for (int i = 1; i < mpc_N; i++)
             for (int j = 0; j < i; j++)
                 for (int k = j + 1; k < (i + 1); k++)
-                    Aqp1.block<nx, nx>(i * nx, j * nx) = A[k] * Aqp1.block<nx, nx>(i * nx, j * nx);
+                    Aqp1.block<nx, nx>(i * nx, j * nx) = A[k] * Aqp1.block<nx, nx>(i * nx, j * nx); //描述系统在多个时间步内的状态转移
 
         for (int i = 0; i < mpc_N; i++)
-            Bqp1.block<nx, nu>(i * nx, i * nu) = B[i];
+            Bqp1.block<nx, nu>(i * nx, i * nu) = B[i]; 
         Eigen::MatrixXd Bqp11 = Eigen::MatrixXd::Zero(nu * mpc_N, nu * ch);
         Bqp11.setZero();
         Bqp11.block<nu * ch, nu * ch>(0, 0) = Eigen::MatrixXd::Identity(nu * ch, nu * ch);
@@ -237,7 +252,7 @@ void MPC::cal() {
 
         Eigen::MatrixXd B_tmp = Eigen::MatrixXd::Zero(nx * mpc_N, nu * ch);
         B_tmp = Bqp1 * Bqp11;
-        Bqp = Aqp1 * B_tmp;
+        Bqp = Aqp1 * B_tmp; //描述控制输入在多个时间步内的累积影响
 
 		Eigen::Matrix<double, nu*ch, 1>		delta_U;
 		delta_U.setZero();
@@ -252,8 +267,8 @@ void MPC::cal() {
 			}
 		}
 
-		H = 2 * (Bqp.transpose() * L * Bqp + alpha * K) + 1e-10*Eigen::MatrixXd::Identity(nx*mpc_N, nx*mpc_N);
-		c = 2 * Bqp.transpose() * L * (Aqp * X_cur - Xd) + 2 * alpha * K * delta_U;
+		H = 2 * (Bqp.transpose() * L * Bqp + alpha * K) + 1e-10*Eigen::MatrixXd::Identity(nx*mpc_N, nx*mpc_N); //目标问题的Hessian矩阵
+		c = 2 * Bqp.transpose() * L * (Aqp * X_cur - Xd) + 2 * alpha * K * delta_U; //目标函数的线性项
 
         //friction constraint
         Eigen::Matrix<double, ncfr_single, 3> Asfr111, Asfr11;
@@ -267,7 +282,7 @@ void MPC::cal() {
                 1.0, 0.0, -1.0 / sqrt(2.0) * miu,
                 0.0, -1.0, -1.0 / sqrt(2.0) * miu,
                 0.0, 1.0, -1.0 / sqrt(2.0) * miu;
-        Asfr11 = Asfr111 * R_w2f;
+        Asfr11 = Asfr111 * R_w2f; //摩擦力约束
         Asfr1.block<ncfr_single, 3>(0, 0) = Asfr11;
         Asfr1.block<ncfr_single, 3>(ncfr_single, 6) = Asfr11;
 
@@ -343,9 +358,9 @@ void MPC::cal() {
         for (int i = 0; i < ch; i++)
             Astz.block<ncstz, nu>(ncstz * i, nu * i) = Astz1;
 
-        As.block<ncfr * ch, nu * ch>(0, 0) = Asfr;
-        As.block<ncstxy * ch, nu * ch>(ncfr * ch, 0) = Astxy;
-        As.block<ncstz * ch, nu * ch>(ncfr * ch + ncstxy * ch, 0) = Astz;
+        As.block<ncfr * ch, nu * ch>(0, 0) = Asfr; //摩擦力约束
+        As.block<ncstxy * ch, nu * ch>(ncfr * ch, 0) = Astxy; //xy方向力矩约束
+        As.block<ncstz * ch, nu * ch>(ncfr * ch + ncstxy * ch, 0) = Astz; //z方向力矩约束
 
         bs.setZero();
 
@@ -436,7 +451,7 @@ void MPC::cal() {
 
 		if (res!=qpOASES::SUCCESSFUL_RETURN)
 		{
-//			printf("failed!!!!!!!!!!!!!\n");
+			printf("failed!!!!!!!!!!!!!\n");
 		}
 
         qpOASES::real_t xOpt[nu * ch];
@@ -446,7 +461,7 @@ void MPC::cal() {
                 Ufe(i) = xOpt[i];
         }
 
-        dX_cal = Ac[0] * X_cur + Bc[0] * Ufe.block<nu,1>(0,0);
+        dX_cal = Ac[0] * X_cur + Bc[0] * Ufe.block<nu,1>(0,0); //计算状态变化量
         Eigen::Matrix<double, nx, 1>    delta_X;
         delta_X.setZero();
         for (int i = 0; i < 3; i++){
@@ -456,10 +471,10 @@ void MPC::cal() {
             delta_X(i+9) = dX_cal(i+9)*dt;
         }
 
-        X_cal = (Aqp * X_cur + Bqp * Ufe).block<nx,1>(nx*0,0) + delta_X;
+        X_cal = (Aqp * X_cur + Bqp * Ufe).block<nx,1>(nx*0,0) + delta_X; //更新系统状态
 
-        Ufe_pre = Ufe.block<nu, 1>(0, 0);
-        QP.reset();
+        Ufe_pre = Ufe.block<nu, 1>(0, 0); //保存当前的控制输入
+        QP.reset(); //充值QP求解器
     }
 }
 
@@ -515,4 +530,18 @@ void MPC::copy_Eigen_to_real_t(qpOASES::real_t* target, Eigen::MatrixXd source, 
         }
     }
 }
+
+/***
+
+为了提高MPC控制的精确性，可以重点调整以下参数：
+1.预测范围（mpc_N）：增大预测范围。
+2.采样时间（dt）：减小采样时间。
+3.权重矩阵（L 和 K）：调整权重矩阵的值。
+4.摩擦力和力矩约束参数（miu 等）：调整摩擦系数和约束参数。
+5.控制输入的上下限（u_low 和 u_up）：调整控制输入的范围。
+6.QP求解器的参数（nWSR 和初始猜测值）：增大迭代次数，调整初始猜测值。
+7.系统矩阵和控制矩阵的精度：确保模型更接近实际系统。
+8.目标状态的平滑性：避免目标状态变化过快。
+
+***/
 

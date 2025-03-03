@@ -21,7 +21,7 @@ struct Task{
     Eigen::VectorXd delta_q, dq, ddq;
     Eigen::MatrixXd J, dJ, Jpre;
     Eigen::MatrixXd N;
-    Eigen::MatrixXd kp, kd;
+    Eigen::MatrixXd kp, kd; //WBC某一优先级中，位置误差权重, 速度权重误差
     Eigen::DiagonalMatrix<double,-1> W; // weighted matrix for pseudo inverse
     Eigen::VectorXd errX, derrX;
     Task(std::string name){taskName=name;};

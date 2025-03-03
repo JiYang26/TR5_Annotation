@@ -25,12 +25,15 @@ void FootPlacement::dataBusRead(DataBus &robotState) {
     legState=robotState.legState;
 }
 
+
 void FootPlacement::dataBusWrite(DataBus &robotState) {
     robotState.swingDesPosCur_W<<pDesCur[0],pDesCur[1],pDesCur[2];
     robotState.swingDesPosFinal_W=posDes_W;
     robotState.swing_fe_rpy_des_W<<0,0,robotState.base_rpy_des(2); // WARNING! ThetaZ!
     robotState.swing_fe_pos_des_W<<pDesCur[0],pDesCur[1],pDesCur[2];
 }
+
+
 void FootPlacement::getSwingPos() {
     Eigen::Matrix<double,4,1> b;
     b.setZero();
